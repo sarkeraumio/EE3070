@@ -1,0 +1,68 @@
+// Pin definitions for the LEDs
+const int led_b = 8; // Blue LED
+const int led_g = 9; // Green LED
+const int led_r = 10; // Red LED
+
+void setup() {
+    // Set the digital pins as output
+    pinMode(led_b, OUTPUT);
+    pinMode(led_g, OUTPUT);
+    pinMode(led_r, OUTPUT);
+
+    Serial.begin(9600);
+}
+
+void loop() {
+    // Check if there's incoming serial data
+    if (Serial.available()) {
+        // Read the command string until a newline
+        String command = Serial.readStringUntil('\n');
+        
+        // Extract the color and brightness
+        char color = command[0];
+        String remainingString = command.substring(1);
+        int brightness = remainingString.toInt();
+        
+        // Ensure brightness is within bounds (0-100)
+        brightness = constrain(brightness, 0, 100);
+        int pwmValue = brightness * 2.55; // Convert to PWM value (0-255)
+
+        // Control LEDs based on the color command
+        if (color == 'B') {
+            analogWrite(led_b, pwmValue);
+            analogWrite(led_g, 0);
+            analogWrite(led_r, 0);
+        } 
+        else if (color == 'R') {
+            analogWrite(led_b, 0);
+            analogWrite(led_g, 0);
+            analogWrite(led_r, pwmValue);
+        } 
+        else if (color == 'G') {
+            analogWrite(led_b, 0);
+            analogWrite(led_g, pwmValue);
+            analogWrite(led_r, 0);
+        } 
+        else if (color == 'M') { // Magenta
+            analogWrite(led_b, pwmValue);
+            analogWrite(led_g, 0);
+            analogWrite(led_r, pwmValue);
+        } 
+        else if (color == 'W') { // White
+            analogWrite(led_b, pwmValue);
+            analogWrite(led_g, pwmValue);
+            analogWrite(led_r, pwmValue);
+        } 
+        else if (color == 'T') { // Teal
+            analogWrite(led_b, pwmValue);
+            analogWrite(led_g, pwmValue);
+            analogWrite(led_r, 0);
+        } 
+        else {
+            // If an unrecognized color is received, turn off all LEDs
+            analogWrite(led_b, 0);
+            analogWrite(led_g, 0);
+            analogWrite(led_r, 0);
+        }
+    }
+}
