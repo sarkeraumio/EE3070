@@ -1,43 +1,39 @@
-#include<Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_SSD1306.h> // OLED display library
+#include <Wire.h>            // I2C communication library
 
-#define SCREEN_WIDTH 128 // OLED display widt:i, in pixels 
-#define SCREEN_HEIGHT 64 // OLED display :ieig:it, in pixels
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins) 
-#define OLED_RESET	-1 // Reset pin# (or -1 if snaring Arduino reset pin)
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+#define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 void setup() {
-Serial.begin(9600);
-// SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3c)) { // Address 0x3C for 128x64 
-  Serial.println(F("SSD1306 allocation failed"));
-  for(;;); // Don't proceed, loop forever
+  Serial.begin(9600);
 
+  // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for (;;); // Don't proceed, loop forever
+  }
+
+  display.clearDisplay();
+  display.drawPixel(10, 10, SSD1306_WHITE);
+  display.drawLine(20, 20, 60, 60, SSD1306_WHITE); // function 1
+  display.drawRect(38, 5, 40, 40, SSD1306_WHITE); // function 2
+  display.drawCircle(90, 50, 10, SSD1306_WHITE); // function 3
+  //display.setTextSize(2); // Set the text size, 1 is normal size
+  //display.setTextColor(SSD1306_WHITE); // Set the text color
+  //display.setCursor(30, 50); // Move the cursor to (x,y)
+  //display.println(F("Aumio")); // Print text to the display
+
+  display.display();
+
+  delay(2000);
 }
 
-display.clearDisplay();
-//display.drawPixel(10, 10, SSD1306_WHITE);
-//display.drawLine(20, 20,60, 60, SSD1306_WHITE); //function 1
-//display.drawRect(20, 20, 40, 40, SSD1306_WHITE); //function 2
-//display.drawCircle(50, 50, 5, SSD1306_WHITE); ///function 3*/
-//fillRect(x, y, w, h, color);//: same as drawRect but the rectangle is filled
-//drawRoundRect(x, y, w, h, r, color);//: (x,y) is top-left corner of the rectangle, w and h are the width and height, r is the corner radius.
-//fillRoundRect(x, y, w, h, r, color);: same as drawRoundRect, except the rectangle is filled
-//drawCircle(x, y, r, color); //(x,y) is the center of the circle and r is its radius.
-//fillCircle(x, y, r, color);// same as drawCircle, except the circle is filled.
-//drawTriangle(x1, y1, x2, y2, x3, y3, color);// (x1,y1), (x2,y2), (x3,y3) are the corner locations of the triangle
-//fillTriangle(x1, y1, x2, y2, x3, y3, color);// same as drawTriangle, except the triangle is filled
-setTextSize(1);//: Set the text size, 1 is normal size
-setTextColor(white);//: Set the text color
-setCursor(40,20);//: move the cursor to (x,y)
-println("Aumio");
-display.display();
-
-delay(2000);
-}
 void loop() {
- // put your main code here, to run repeatedly:
- }
-
+  // Main code to run repeatedly
+}
