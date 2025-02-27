@@ -46,9 +46,6 @@ void setup(void) {
         Serial.println("INA219 begin failed");
         delay(2000);
     }
-
-    // Linear calibration
-    ina219.linearCalibrate(ina219Reading_mA, extMeterReading_mA);
 }
 
 void loop(void) {
