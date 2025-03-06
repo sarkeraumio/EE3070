@@ -1,0 +1,116 @@
+//this code displays shunt voltage on OLED and if the shunt voltage is greater than 
+// a particular voltage (ie 6 mV), it turns red, or it remains green, if there is no voltage, no led is lighted 
+
+#include <Wire.h>
+#include "DFRobot_INA219.h"
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>
+
+// Define OLED display width and height
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+// Create an instance of the SSD1306 display
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// Define LED pins
+int redLED = 10;  
+int greenLED = 9; 
+int blueLED = 8;  // Not used in this logic, but kept for future use
+
+DFRobot_INA219_IIC ina219(&Wire, INA219_I2C_ADDRESS4);
+
+// Calibration parameters
+float ina219Reading_mA = 1000;
+float extMeterReading_mA = 1000;
+
+void setup(void) {
+    // Initialize LED pins as outputs
+    pinMode(greenLED, OUTPUT); 
+    pinMode(blueLED, OUTPUT);
+    pinMode(redLED, OUTPUT);
+
+    // Initialize Serial for debugging
+    Serial.begin(115200);
+    while (!Serial);
+
+    // Initialize the OLED display
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x64
+        Serial.println(F("SSD1306 allocation failed"));
+        for (;;); // Halt if display initialization fails
+    }
+    display.display();
+    delay(2000); // Pause for 2 seconds
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+
+    // Initialize the INA219 sensor
+    while (ina219.begin() != true) {
+        Serial.println("INA219 begin failed");
+        delay(2000);
+    }
+}
+
+void loop(void) {
+    // Read sensor data
+    ina219.linearCalibrate(ina219Reading_mA, extMeterReading_mA);
+    float busVoltage = ina219.getBusVoltage_V();
+    float shuntVoltage = ina219.getShuntVoltage_mV();
+    float current = ina219.getCurrent_mA();
+    float power = ina219.getPower_mW();
+
+    // Control LEDs based on shunt voltage
+    if (shuntVoltage < 6.0) {
+        digitalWrite(greenLED, HIGH); // Turn on green LED
+        digitalWrite(redLED, LOW);   // Turn off red LED
+    } else if (shuntVoltage > 6.0) {
+        digitalWrite(redLED, HIGH);  // Turn on red LED
+        digitalWrite(greenLED, LOW); // Turn off green LED
+    } else {
+        // If shunt voltage is between 5mV and 6mV, turn off both LEDs
+        digitalWrite(greenLED, LOW);
+        digitalWrite(redLED, LOW);
+    }
+
+    // Display data on OLED
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print("Bus Voltage: ");
+    display.print(busVoltage, 2);
+    display.println(" V");
+
+    display.setCursor(0, 16);
+    display.print("Shunt Voltage: ");
+    display.print(shuntVoltage, 3);
+    display.println(" mV");
+
+    display.setCursor(0, 32);
+    display.print("Current: ");
+    display.print(current, 1);
+    display.println(" mA");
+
+    display.setCursor(0, 48);
+    display.print("Power: ");
+    display.print(power, 1);
+    display.println(" mW");
+
+    display.display();
+
+    // Print data to Serial Monitor for debugging
+    Serial.print("BusVoltage:   ");
+    Serial.print(busVoltage, 2);
+    Serial.println(" V");
+    Serial.print("ShuntVoltage: ");
+    Serial.print(shuntVoltage, 3);
+    Serial.println(" mV");
+    Serial.print("Current:      ");
+    Serial.print(current, 1);
+    Serial.println(" mA");
+    Serial.print("Power:        ");
+    Serial.print(power, 1);
+    Serial.println(" mW");
+    Serial.println("");
+
+    delay(1000); // Wait 1 second before the next reading
+}
