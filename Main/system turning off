@@ -1,0 +1,209 @@
+#include <Wire.h>
+#include "DFRobot_INA219.h"
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>
+
+// Define OLED display width and height
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+// Create an instance of the SSD1306 display
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// Define LED pins
+int redLED = 10;  
+int greenLED = 9; 
+int blueLED = 8;  // Not used in this logic, but kept for future use
+
+// Define buzzer pin
+int buzzerPin = 7;  // Change this to the pin you're using for the buzzer
+
+DFRobot_INA219_IIC ina219(&Wire, INA219_I2C_ADDRESS4);
+
+// Calibration parameters
+float ina219Reading_mA = 1000;
+float extMeterReading_mA = 1000;
+
+void setup(void) {
+    // Initialize LED pins as outputs
+    pinMode(greenLED, OUTPUT); 
+    pinMode(blueLED, OUTPUT);
+    pinMode(redLED, OUTPUT);
+
+    // Initialize buzzer pin as output
+    pinMode(buzzerPin, OUTPUT);
+
+    // Initialize Serial for debugging
+    Serial.begin(115200);
+    while (!Serial);
+
+    // Initialize the OLED display
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x64
+        Serial.println(F("SSD1306 allocation failed"));
+        for (;;); // Halt if display initialization fails
+    }
+    display.display();
+    delay(2000); // Pause for 2 seconds
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+
+    // Initialize the INA219 sensor
+    while (ina219.begin() != true) {
+        Serial.println("INA219 begin failed");
+        delay(2000);
+    }
+}
+
+void loop(void) {
+    // Read sensor data
+    ina219.linearCalibrate(ina219Reading_mA, extMeterReading_mA);
+    float busVoltage = ina219.getBusVoltage_V();
+    float shuntVoltage = ina219.getShuntVoltage_mV();
+    float current = ina219.getCurrent_mA();
+    float power = ina219.getPower_mW();
+
+    // Control LEDs and buzzer based on shunt voltage
+    if (shuntVoltage < 6.0 && shuntVoltage > 0.5) {
+        digitalWrite(greenLED, HIGH); // Turn on green LED
+        digitalWrite(redLED, LOW);   // Turn off red LED
+        digitalWrite(buzzerPin, LOW); // Turn off buzzer
+    } else if (shuntVoltage > 6.0) {
+        digitalWrite(redLED, HIGH);  // Turn on red LED
+        digitalWrite(greenLED, LOW); // Turn off green LED
+        digitalWrite(buzzerPin, HIGH); // Turn on buzzer
+
+        // Display warning message and wait for 30 seconds before shutting down
+        displayWarningAndShutdown(busVoltage, shuntVoltage, current, power);
+    } else {
+        // If shunt voltage is between 5mV and 6mV, turn off both LEDs and buzzer
+        digitalWrite(greenLED, LOW);
+        digitalWrite(redLED, LOW);
+        digitalWrite(buzzerPin, LOW);
+    }
+
+    // Display data on OLED
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.print("Bus Voltage: ");
+    display.print(busVoltage, 2);
+    display.println(" V");
+
+    display.setCursor(0, 16);
+    display.print("Shunt Voltage: ");
+    display.print(shuntVoltage, 3);
+    display.println(" mV");
+
+    display.setCursor(0, 32);
+    display.print("Current: ");
+    display.print(current, 1);
+    display.println(" mA");
+
+    display.setCursor(0, 48);
+    display.print("Power: ");
+    display.print(power, 1);
+    display.println(" mW");
+
+    display.display();
+
+    // Print data to Serial Monitor for debugging
+    Serial.print("BusVoltage:   ");
+    Serial.print(busVoltage, 2);
+    Serial.println(" V");
+    Serial.print("ShuntVoltage: ");
+    Serial.print(shuntVoltage, 3);
+    Serial.println(" mV");
+    Serial.print("Current:      ");
+    Serial.print(current, 1);
+    Serial.println(" mA");
+    Serial.print("Power:        ");
+    Serial.print(power, 1);
+    Serial.println(" mW");
+    Serial.println("");
+
+    delay(1000); // Wait 1 second before the next reading
+}
+
+void displayWarningAndShutdown(float busVoltage, float shuntVoltage, float current, float power) {
+    unsigned long startTime = millis();
+
+    // First 20 seconds: Display sensor data
+    while (millis() - startTime < 20000) {
+        // Display sensor data on OLED
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.print("Bus Voltage: ");
+        display.print(busVoltage, 2);
+        display.println(" V");
+
+        display.setCursor(0, 16);
+        display.print("Shunt Voltage: ");
+        display.print(shuntVoltage, 3);
+        display.println(" mV");
+
+        display.setCursor(0, 32);
+        display.print("Current: ");
+        display.print(current, 1);
+        display.println(" mA");
+
+        display.setCursor(0, 48);
+        display.print("Power: ");
+        display.print(power, 1);
+        display.println(" mW");
+
+        display.display();
+
+        // Print data to Serial Monitor for debugging
+        Serial.print("BusVoltage:   ");
+        Serial.print(busVoltage, 2);
+        Serial.println(" V");
+        Serial.print("ShuntVoltage: ");
+        Serial.print(shuntVoltage, 3);
+        Serial.println(" mV");
+        Serial.print("Current:      ");
+        Serial.print(current, 1);
+        Serial.println(" mA");
+        Serial.print("Power:        ");
+        Serial.print(power, 1);
+        Serial.println(" mW");
+        Serial.println("");
+
+        delay(1000); // Update every second
+    }
+
+    // Last 10 seconds: Display "System is turning off" message
+    unsigned long warningStartTime = millis();
+    while (millis() - warningStartTime < 10000) {
+        display.clearDisplay();
+        display.setCursor(0, 0);
+        display.setTextSize(1);
+        display.println("System is");
+        display.println("turning off");
+        display.println("in 10 seconds.");
+        display.display();
+
+        delay(100); // Small delay to avoid flickering
+    }
+
+    // Turn off the system
+    turnOffSystem();
+}
+
+void turnOffSystem() {
+    // Turn off all LEDs and buzzer
+    digitalWrite(greenLED, LOW);
+    digitalWrite(redLED, LOW);
+    digitalWrite(buzzerPin, LOW);
+
+    // Clear the OLED display
+    display.clearDisplay();
+    display.display();
+
+    // Print a message to the Serial Monitor
+    Serial.println("System turned off.");
+
+    // Enter an infinite loop to halt the system
+    while (true) {
+        // Do nothing, effectively halting the system
+    }
+}
