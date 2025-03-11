@@ -1,0 +1,123 @@
+//shows energy
+
+#include <Wire.h>
+#include "DFRobot_INA219.h"
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_GFX.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// LED pins
+int redLED = 10;
+int greenLED = 9;
+int blueLED = 8;  // Not used in this logic, but kept for future use
+
+DFRobot_INA219_IIC ina219(&Wire, INA219_I2C_ADDRESS4);
+
+// Calibration and flat rate
+float ina219Reading_mA = 1000;
+float extMeterReading_mA = 1000;
+const float FLAT_RATE = 1.443; // 1.443 HKD/kWh based on CLP's official webpage
+
+// Energy tracking
+float totalEnergy = 0;  // Cumulative mWh
+float energyLastSecond = 0; // Energy consumed in the last second in mWh
+unsigned long lastUpdate = 0;
+
+void setup() {
+  pinMode(greenLED, OUTPUT);
+  pinMode(redLED, OUTPUT);
+  pinMode(blueLED, OUTPUT); // Initialize (unused)
+  Serial.begin(115200);
+  while(!Serial);
+  // Initialize OLED
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("OLED failed"));
+    for (;;);
+  }
+  display.display();
+  delay(2000); // Pause for 2 seconds
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+
+  // Initialize INA219
+  while (ina219.begin() != true) {
+    Serial.println("INA219 failed");
+    delay(2000);
+  }
+}
+
+void loop() {
+  // Read sensor data
+  ina219.linearCalibrate(ina219Reading_mA, extMeterReading_mA);
+  float busVoltage = ina219.getBusVoltage_V();
+  float shuntVoltage = ina219.getShuntVoltage_mV() / 1000.0; // Convert mV to V
+  float current = ina219.getCurrent_mA();
+  float power = ina219.getPower_mW();
+
+  // Update energy (mWh)
+  unsigned long now = millis(); // "now" stores current timestamp in ms, millis() returns the time in ms since Arduino started running
+  float timeElapsed = (now - lastUpdate) / 1000.0; // Convert time elapsed to seconds
+  totalEnergy += power * (timeElapsed / 3600.0); // power is in mW, timeElapsed is in seconds, so the result is in mWh
+  lastUpdate = now;
+
+  // Calculate energy consumed in the last second (mWh)
+  energyLastSecond = power * (timeElapsed / 3600.0);
+
+  // LED control based on shunt voltage
+  if (shuntVoltage < 0.006) { // Converted 6 mV to 0.006 V
+    digitalWrite(greenLED, HIGH);
+    digitalWrite(redLED, LOW);
+  } else if (shuntVoltage > 0.006) { // Converted 6 mV to 0.006 V
+    digitalWrite(redLED, HIGH);
+    digitalWrite(greenLED, LOW);
+  } else {
+    digitalWrite(greenLED, LOW);
+    digitalWrite(redLED, LOW);
+  }
+
+  // Calculate cost for the last second
+  float costLastSecond = (energyLastSecond / 1000000.0) * FLAT_RATE; // Convert mWh to kWh for cost calculation
+
+  // OLED display
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.print("V: "); display.print(busVoltage, 2); display.print(" V");
+  display.setCursor(0, 16);
+  display.print("Shunt: "); display.print(shuntVoltage, 6); display.print(" V"); // Display in volts
+  display.setCursor(0, 32);
+  display.print("P: "); display.print(power, 1); display.print(" mW");
+  display.setCursor(0, 48 );
+  display.print("mWh: "); display.print(totalEnergy, 3);
+  display.setCursor(0, 56);
+  display.print("E/s: "); display.print(energyLastSecond, 3); display.print(" mWh");
+  display.display();
+
+  // Serial prints
+  Serial.print("BusVoltage:   ");
+  Serial.print(busVoltage, 2);
+  Serial.println(" V");
+  Serial.print("ShuntVoltage: ");
+  Serial.print(shuntVoltage, 6); // Print in volts
+  Serial.println(" V");
+  Serial.print("Current:      ");
+  Serial.print(current, 1);
+  Serial.println(" mA");
+  Serial.print("Power:        ");
+  Serial.print(power, 1);
+  Serial.println(" mW");
+  Serial.print("Total Energy: ");
+  Serial.print(totalEnergy, 3);
+  Serial.println(" mWh");
+  Serial.print("Energy/s:     ");
+  Serial.print(energyLastSecond, 3);
+  Serial.println(" mWh");
+  Serial.print("Cost/s:       HK$");
+  Serial.println(costLastSecond, 2);
+  Serial.println("----------------------"); // Separator line
+
+  delay(1000);
+}
