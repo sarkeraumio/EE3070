@@ -11,6 +11,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 int redLED = 10;
 int greenLED = 9;
 int blueLED = 8;  // Unused but retained
+// Define buzzer pin
+int buzzerPin = 7;  // Change this to the pin you're using for the buzzer
 
 DFRobot_INA219_IIC ina219(&Wire, INA219_I2C_ADDRESS4);
 
@@ -27,6 +29,8 @@ void setup() {
   pinMode(greenLED, OUTPUT);
   pinMode(redLED, OUTPUT);
   pinMode(blueLED, OUTPUT); // Initialize (unused)
+  // Initialize buzzer pin as output
+  pinMode(buzzerPin, OUTPUT);
   Serial.begin(115200);
   while(!Serial);
   // Initialize OLED
@@ -61,16 +65,20 @@ void loop() {
   lastUpdate = now;
 
   // LED control based on shunt voltage
-  if (shuntVoltage < 6.0) {
-    digitalWrite(greenLED, HIGH);
-    digitalWrite(redLED, LOW);
-  } else if (shuntVoltage > 6.0) {
-    digitalWrite(redLED, HIGH);
-    digitalWrite(greenLED, LOW);
-  } else {
-    digitalWrite(greenLED, LOW);
-    digitalWrite(redLED, LOW);
-  }
+  if (shuntVoltage < 6.0 && shuntVoltage > 0.5) {
+        digitalWrite(greenLED, HIGH); // Turn on green LED
+        digitalWrite(redLED, LOW);   // Turn off red LED
+        digitalWrite(buzzerPin, LOW); // Turn off buzzer
+    } else if (shuntVoltage > 6.0) {
+        digitalWrite(redLED, HIGH);  // Turn on red LED
+        digitalWrite(greenLED, LOW); // Turn off green LED
+        digitalWrite(buzzerPin, HIGH); // Turn on buzzer
+    } else {
+        // If shunt voltage is between 5mV and 6mV, turn off both LEDs and buzzer
+        digitalWrite(greenLED, LOW);
+        digitalWrite(redLED, LOW);
+        digitalWrite(buzzerPin, LOW);
+    }
 
   // ============== CHANGED: SCALED ENERGY & COST ==============
   float scaledEnergy = totalEnergy * ENERGY_SCALE; // kWh → mWh
