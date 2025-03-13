@@ -1,0 +1,119 @@
+#include "wifi_module.h"
+
+void WiFi_Read() {
+
+  int statusCode = 0;
+  
+  // Connect or reconnect to WiFi
+  if(WiFi.status() != WL_CONNECTED){
+    Serial.print("Attempting to connect to SSID: ");
+    while(WiFi.status() != WL_CONNECTED){
+      WiFi.begin(ssid, pass); // Connect to WPA/WPA2 network. Change this line if using open or WEP network
+      Serial.print(".");
+      delay(5000);     
+    } 
+    Serial.println("\nConnected");
+  }
+
+  // Read in field 4 of the public channel recording the temperature
+  float temperatureInF = ThingSpeak.readFloatField(weatherStationChannelNumber, temperatureFieldNumber);  
+
+  // Check the status of the read operation to see if it was successful
+  statusCode = ThingSpeak.getLastReadStatus();
+  if(statusCode == 200){
+    Serial.println("Temperature at MathWorks HQ: " + String(temperatureInF) + " deg F");
+  }
+  else{
+    Serial.println("Problem reading channel. HTTP error code " + String(statusCode)); 
+  }
+  
+  delay(15000); // No need to read the temperature too often.
+
+  // Read in field 1 of the private channel which is a counter  
+  long count = ThingSpeak.readLongField(counterChannelNumber, counterFieldNumber, myCounterReadAPIKey);  
+
+   // Check the status of the read operation to see if it was successful
+  statusCode = ThingSpeak.getLastReadStatus();
+  if(statusCode == 200){
+    Serial.println("Counter: " + String(count));
+  }
+  else{
+    Serial.println("Problem reading channel. HTTP error code " + String(statusCode)); 
+  }
+  
+  delay(15000); // No need to read the counter too often.
+  
+}
+
+void WiFi_Write() {
+
+  // Connect or reconnect to WiFi
+  if(WiFi.status() != WL_CONNECTED){
+    Serial.print("Attempting to connect to SSID: ");
+    while(WiFi.status() != WL_CONNECTED){
+      WiFi.begin(ssid, pass);  // Connect to WPA/WPA2 network. Change this line if using open or WEP network
+      Serial.print(".");
+      delay(5000);     
+    } 
+    Serial.println("\nConnected.");
+  }
+
+  // set the fields with the values
+  ThingSpeak.setField(1,number1);
+  ThingSpeak.setField(2,number2);
+  ThingSpeak.setField(3,number3);
+  ThingSpeak.setField(4,number4);
+
+  // figure out the status message
+  if(number1 > number2){
+    myStatus = String("field1 is greater than field2"); 
+  }
+  else if(number1 < number2){
+    myStatus = String("field1 is less than field2");
+  }
+  else{
+    myStatus = String("field1 equals field2");
+  }
+  
+  // set the status
+  ThingSpeak.setStatus(myStatus);
+  
+  // write to the ThingSpeak channel
+  int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+  if(x == 200){
+    Serial.println("Channel update successful.");
+  }
+  else{
+    Serial.println("Problem updating channel. HTTP error code " + String(x));
+  }
+  
+  // change the values
+  number1++;
+  if(number1 > 99){
+    number1 = 0;
+  }
+  number2 = random(0,100);
+  number3 = random(0,100);
+  number4 = random(0,100);
+  
+  delay(20000); // Wait 20 seconds to update the channel again
+}
+
+void setEspBaudRate(unsigned long baudrate){
+  long rates[6] = {115200,74880,57600,38400,19200,9600};
+
+  Serial.print("Setting ESP8266 baudrate to ");
+  Serial.print(baudrate);
+  Serial.println("...");
+
+  for(int i = 0; i < 6; i++){
+    Serial1.begin(rates[i]);
+    delay(100);
+    Serial1.print("AT+UART_DEF=");
+    Serial1.print(baudrate);
+    Serial1.print(",8,1,0,0\r\n");
+    delay(100);  
+  }
+    
+  Serial1.begin(baudrate);
+}
