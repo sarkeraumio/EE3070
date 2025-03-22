@@ -1,0 +1,48 @@
+
+ // RGB LEC Colors
+
+ int redLED = 11;  int greenLED = 10; int blueLED = 9;
+String command ="";
+ void setup() {
+
+// put your setup code here, to run once: pinMode(redLED, OUTPUT);
+pinMode(greenLED, OUTPUT); 
+pinMode(blueLED, OUTPUT);
+pinMode(redLED, OUTPUT);
+Serial.begin(9600);
+
+ }
+ void loop() {
+
+while (Serial.available() > 0) {
+  command = Serial.readString();
+  command.trim(); // remove new lines at the end  
+
+  if (command == "magenta") { 
+    digitalWrite(redLED, HIGH);
+    digitalWrite(blueLED, HIGH);
+    digitalWrite(greenLED, LOW);
+    Serial.print(command);
+    delay (1000);
+    }
+
+
+  if (command == "green") {
+// Display Green Color
+    digitalWrite(redLED, LOW);
+    digitalWrite(greenLED, HIGH);
+    digitalWrite(blueLED, LOW);
+    delay (1000); 
+   
+// Display Blue Color
+    }
+ if (command == "blue") {
+    digitalWrite(redLED, LOW);
+    digitalWrite(greenLED, LOW);
+    digitalWrite(blueLED, HIGH);
+    delay (1000);
+    
+  }
+
+  }
+}
