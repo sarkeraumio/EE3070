@@ -1,0 +1,59 @@
+//week 9 codes
+% Load the data
+data = readtable('smart_meter_data.csv');
+
+% Display the first few rows of the data
+head(data)
+
+% Convert the Timestamp to datetime format
+data.Timestamp = datetime(data.Timestamp, 'InputFormat', 'yyyy-MM-dd HH:mm:ss');
+
+% Extract features and labels
+features = data{:, {'Electricity_Consumed', 'Temperature', 'Humidity', 'Wind_Speed', 'Avg_Past_Consumption'}};
+labels = categorical(data.Anomaly_Label);
+
+% Normalize the features (optional but recommended for many algorithms)
+features = normalize(features);
+
+% Split the data into training and testing sets (e.g., 70% training, 30% testing)
+rng(1); % For reproducibility
+cv = cvpartition(size(features, 1), 'HoldOut', 0.3);
+idxTrain = training(cv);
+idxTest = test(cv);
+
+featuresTrain = features(idxTrain, :);
+labelsTrain = labels(idxTrain);
+featuresTest = features(idxTest, :);
+labelsTest = labels(idxTest);
+
+% Train an Isolation Forest model for anomaly detection
+% Note: Isolation Forest is available in MATLAB's Statistics and Machine Learning Toolbox
+Mdl = iforest(featuresTrain, 'NumLearners', 100, 'NumObservationsPerLearner', 256);
+
+% Predict anomalies on the test set
+[~, scores] = anomaly(Mdl, featuresTest);
+threshold = mean(scores) + 3 * std(scores); % Define a threshold for anomalies
+labelsPred = double(scores > threshold); % Convert to numeric vector
+
+% Convert labelsTest to numeric vector
+labelsTest = double(labelsTest == 'Abnormal');
+
+% Evaluate the model
+confusionMatrix = confusionmat(labelsTest, labelsPred);
+disp('Confusion Matrix:');
+disp(confusionMatrix);
+
+accuracy = sum(labelsPred == labelsTest) / numel(labelsTest);
+disp(['Accuracy: ', num2str(accuracy)]);
+
+% Plot the results (e.g., time series with anomalies highlighted)
+figure;
+plot(data.Timestamp, data.Electricity_Consumed, 'b');
+hold on;
+anomalyIdx = find(labelsPred == 1);
+plot(data.Timestamp(anomalyIdx), data.Electricity_Consumed(anomalyIdx), 'ro');
+xlabel('Time');
+ylabel('Electricity Consumed');
+title('Anomaly Detection in Smart Meter Data');
+legend('Normal', 'Anomaly');
+hold off;
